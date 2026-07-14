@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 供应商管理方案生成器
-读入结构化方案 JSON，生成 Markdown 文档 + 网页版 HTML（主色 #C8102E）。
+读入结构化方案 JSON，生成 Markdown 文档 + 纯文字版 TXT。
 
 用法：
-  python build_report.py --input plan.json --md-out 供应商管理方案.md --html-out 供应商管理方案.html
-  python build_report.py                                  # 不传参数，使用内置小样本，直接产出示意双版
+  python build_report.py --input plan.json --out-dir ./out
+  python build_report.py                                  # 不传参数，使用内置小样本，直接产出 txt+md
 
 输入 JSON 结构：
 {
@@ -26,15 +26,9 @@
 
 import argparse
 import json
+import os
 import sys
-import html
 from datetime import datetime
-
-PRIMARY = "#C8102E"  # 主色
-
-
-def esc(s):
-    return html.escape(str(s), quote=True)
 
 
 def load_plan(path):
@@ -46,12 +40,6 @@ def bullets_md(items):
     if not items:
         return "（待企业补充）"
     return "\n".join(f"- {it}" for it in items)
-
-
-def bullets_html(items):
-    if not items:
-        return "<li class='pending'>（待企业补充）</li>"
-    return "\n".join(f"<li>{esc(it)}</li>" for it in items)
 
 
 def build_md(p):
@@ -94,72 +82,64 @@ def build_md(p):
     return "\n".join(L)
 
 
-CSS = f"""
-:root{{--primary:{PRIMARY};--bg:#fafafa;--card:#ffffff;--ink:#1f2937;--muted:#6b7280;}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
-  background:var(--bg);color:var(--ink);line-height:1.75;padding:32px}}
-.wrap{{max-width:980px;margin:0 auto}}
-header{{text-align:center;padding:26px 0 16px;border-bottom:3px solid var(--primary);margin-bottom:26px}}
-header h1{{font-size:27px;letter-spacing:1px}}
-header .meta{{color:var(--muted);font-size:14px;margin-top:10px}}
-.sec{{background:var(--card);border-radius:14px;padding:22px 26px;box-shadow:0 4px 16px rgba(0,0,0,.05);margin-bottom:22px}}
-.sec h2{{font-size:20px;margin-bottom:12px;border-left:5px solid var(--primary);padding-left:12px}}
-.sec h3{{font-size:16px;margin:14px 0 8px;color:var(--primary)}}
-.sec p{{margin:6px 0;font-size:15px}}
-.sec ul{{margin:6px 0 6px 20px;font-size:15px}}
-.sec li{{padding:3px 0}}
-.pending{{color:var(--muted);font-style:italic}}
-table{{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}}
-th,td{{border:1px solid #e5e7eb;padding:9px 12px;text-align:left}}
-th{{background:var(--primary);color:#fff}}
-.pend-box{{background:#fff7f8;border:1px dashed var(--primary);border-radius:12px;padding:18px 22px}}
-.pend-box h2{{color:var(--primary);border:none;padding:0;margin-bottom:8px}}
-footer{{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}}
-"""
-
-
-def build_html(p):
-    obj_html = "\n".join(f"<li>{esc(o)}</li>" for o in (p.get("objectives") or ["（待企业补充）"]))
-    ov = esc(p.get("supplier_overview", "（待企业补充）"))
-    sec_html = ""
+def build_txt(p):
+    W = 56
+    L = []
+    title = p.get("plan_title", "供应商管理方案")
+    L.append("=" * W)
+    L.append(title)
+    L.append("=" * W)
+    L.append("")
+    L.append("一、方案概览")
+    L.append("-" * W)
+    L.append(f"责任部门：{p.get('owner','')}")
+    L.append(f"适用周期：{p.get('period','')}")
+    L.append(f"生成日期：{datetime.now().strftime('%Y-%m-%d')}")
+    L.append("")
+    L.append("二、管理目标")
+    L.append("-" * W)
+    objs = p.get("objectives", []) or []
+    if objs:
+        for o in objs:
+            L.append(f"- {o}")
+    else:
+        L.append("- （待企业补充）")
+    L.append("")
+    L.append("三、供应商总体概况")
+    L.append("-" * W)
+    L.append(p.get("supplier_overview", "（待企业补充）"))
+    L.append("")
+    L.append("四、管理方案框架（九段式）")
+    L.append("-" * W)
     for s in p.get("sections", []) or []:
-        body = esc(s.get("body", "")) if s.get("body") else ""
-        sec_html += (
-            f"<div class='sec'><h3>{esc(s.get('no',''))} {esc(s.get('title',''))}</h3>"
-            f"<p>{body}</p><ul>{bullets_html(s.get('bullets', []))}</ul></div>"
-        )
-    tl_rows = "\n".join(
-        f"<tr><td>{esc(t.get('phase',''))}</td><td>{esc(t.get('time',''))}</td><td>{esc(t.get('task',''))}</td></tr>"
-        for t in (p.get("timeline", []) or [])
-    )
+        L.append(f"{s.get('no','')} {s.get('title','')}")
+        body = s.get("body")
+        if body:
+            L.append(body)
+        items = s.get("bullets", []) or []
+        if items:
+            for it in items:
+                L.append(f"  - {it}")
+        else:
+            L.append("  - （待企业补充）")
+        L.append("")
+    L.append("五、实施时间线")
+    L.append("-" * W)
+    for t in p.get("timeline", []) or []:
+        L.append(f"〔{t.get('phase','')}｜{t.get('time','')}〕{t.get('task','')}")
+    L.append("")
     pend = p.get("pending", [])
-    pend_html = ""
     if pend:
-        items = "\n".join(f"<li>〔待企业补充〕{esc(x)}</li>" for x in pend)
-        pend_html = f"<div class='pend-box'><h2>六、待企业补充项</h2><ul>{items}</ul></div>"
-
-    return f"""<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{esc(p.get('plan_title','供应商管理方案'))}</title>
-<style>{CSS}</style></head>
-<body><div class="wrap">
-<header>
-  <h1>{esc(p.get('plan_title','供应商管理方案'))}</h1>
-  <div class="meta">责任部门：{esc(p.get('owner',''))} ｜ 适用周期：{esc(p.get('period',''))} ｜ 生成：{datetime.now().strftime('%Y-%m-%d')}</div>
-</header>
-<section class="sec"><h2>一、管理目标</h2><ul>{obj_html}</ul></section>
-<section class="sec"><h2>二、供应商总体概况</h2><p>{ov}</p></section>
-<section>{sec_html}</section>
-<section class="sec"><h2>五、实施时间线</h2>
-<table><thead><tr><th>阶段</th><th>时间</th><th>主要任务</th></tr></thead><tbody>{tl_rows}</tbody></table></section>
-{pend_html}
-<footer>本报告由供应商管理方案技能生成 · {datetime.now().strftime('%Y-%m-%d %H:%M')}</footer>
-</div></body></html>"""
+        L.append("六、待企业补充项")
+        L.append("-" * W)
+        for x in pend:
+            L.append(f"- 〔待企业补充〕{x}")
+        L.append("")
+    L.append(f"本报告由供应商管理方案技能生成 · {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    return "\n".join(L)
 
 
-# 内置小样本：可直接跑通产出示意双版
+# 内置小样本：可直接跑通产出 txt+md 示意文档
 SAMPLE_PLAN = {
     "plan_title": "2026年度供应商质量管理方案（示意）",
     "owner": "供应商质量部",
@@ -207,8 +187,8 @@ SAMPLE_PLAN = {
 def main():
     ap = argparse.ArgumentParser(description="供应商管理方案生成器")
     ap.add_argument("--input", help="结构化方案 JSON 路径（缺省使用内置小样本）")
-    ap.add_argument("--md-out", default="供应商管理方案.md", help="输出 MD 路径")
-    ap.add_argument("--html-out", default="供应商管理方案.html", help="输出 HTML 路径")
+    ap.add_argument("--out-dir", default=os.getcwd(), help="输出目录（缺省为当前工作目录）")
+    ap.add_argument("--format", choices=["txt", "md", "all"], default="all", help="输出格式，默认 all（txt+md）")
     args = ap.parse_args()
 
     try:
@@ -217,13 +197,20 @@ def main():
         sys.stderr.write(f"读取输入失败：{e}\n")
         sys.exit(1)
 
-    with open(args.md_out, "w", encoding="utf-8") as f:
-        f.write(build_md(plan))
-    sys.stderr.write(f"MD 已生成：{args.md_out}\n")
+    out_dir = args.out_dir or os.getcwd()
+    os.makedirs(out_dir, exist_ok=True)
+    date_tag = datetime.now().strftime("%Y%m%d")
+    base = f"供应商管理方案_{date_tag}"
 
-    with open(args.html_out, "w", encoding="utf-8") as f:
-        f.write(build_html(plan))
-    sys.stderr.write(f"HTML 已生成：{args.html_out}\n")
+    if args.format in ("md", "all"):
+        with open(os.path.join(out_dir, base + ".md"), "w", encoding="utf-8") as f:
+            f.write(build_md(plan))
+        sys.stderr.write(f"MD 已生成：{os.path.join(out_dir, base + '.md')}\n")
+
+    if args.format in ("txt", "all"):
+        with open(os.path.join(out_dir, base + ".txt"), "w", encoding="utf-8") as f:
+            f.write(build_txt(plan))
+        sys.stderr.write(f"TXT 已生成：{os.path.join(out_dir, base + '.txt')}\n")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
 # 供应商管理方案生成技能（supplier-management-plan）
 
-> 主色：#C8102E ｜ 范式：混合式（Markdown + HTML 双版）
+> 范式：交互引导式（纯文字版 .txt + Markdown .md）
 > 面向供应商质量经理的供应商整体管理方案生成工具。
 
 ## 一句话说明
-以九段式标准化框架覆盖分类分级、准入、绩效、审核、变更、协议、帮扶与应急，一键产出可归档的 MD 与可汇报的 HTML 双版方案。
+以九段式标准化框架覆盖分类分级、准入、绩效、审核、变更、协议、帮扶与应急，一键产出可归档的 MD 与可打印流转的 TXT 方案。
 
 ## 适用角色
 - 供应商质量经理（SQM）
@@ -30,15 +30,15 @@
 ## 文件清单
 - `SKILL.md`：技能主文件
 - `README.md`：本说明
-- `scripts/build_report.py`：方案 JSON → MD + HTML 双版生成器
+- `scripts/build_report.py`：方案 JSON → TXT + MD 生成器
 
 ## 使用方法
 ```bash
-# 内置小样本直接跑通，产出示意双版
+# 内置小样本直接跑通，产出示意 txt+md
 python scripts/build_report.py
 
 # 用自有数据
-python scripts/build_report.py --input plan.json --md-out 供应商管理方案.md --html-out 供应商管理方案.html
+python scripts/build_report.py --input plan.json --out-dir ./out
 ```
 
 ## 联动技能
