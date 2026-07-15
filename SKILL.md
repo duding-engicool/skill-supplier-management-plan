@@ -2,6 +2,8 @@
 name: supplier-management-plan
 description: 面向供应商质量经理的供应商整体管理方案生成技能；以标准化框架覆盖分类分级、准入、绩效、审核、变更、协议、帮扶与应急，产出纯文字版与 Markdown 方案文档。
 version: 1.0.0
+slug: supplier-management-plan
+displayName: 供应商管理方案
 ---
 
 # 供应商管理方案生成技能
